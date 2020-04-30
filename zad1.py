@@ -1,136 +1,66 @@
+import copy
 import math
 import random
-import sys
 from time import perf_counter
 
 vec_len = lambda x: math.sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + x[3] ** 2)
 
 
-def randomize(x):
-    idx = random.randint(0, 3)
+def get_input():
+    line = input().split()
+    time = int(line[0])
+    start = list(map(int, line[1:]))
+
+    return [time, start]
+
+
+def perturb(x):
+    copied = copy.deepcopy(x)
+
+    idx1 = random.randint(0, 3)
     value = random.randint(-1, 1)
-    if value <= 0:
-        x[idx] += 10
-    else:
-        x[idx] -= 10
 
-    return x
+    copied[idx1] += value
+
+    idx2 = random.randint(0, 3)
+    value = random.randint(-1, 1)
+
+    copied[idx2] += value
+
+    return copied
 
 
-def happy_cat(x=None):
+def salomon(x=None):
     if x is None:
         x = [0, 0, 0, 0]
-    return ((vec_len(x) ** 2 - 4) ** 2) ** (1 / 8) + (1 / 4) * ((vec_len(x) ** 2) / 2 + sum(x)) + 1 / 2
+    return 1 - math.cos(2 * math.pi * vec_len(x)) + 0.1 * vec_len(x)
 
 
-def griewank(x=None):
-    if x is None:
-        x = [0, 0, 0, 0]
-    return 1 + (x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + x[3] ** 2) / 4000 - \
-           (math.cos(x[0]) * math.cos(x[1] / math.sqrt(2)) * math.cos(x[2] / math.sqrt(3)) * math.cos(x[3] / 2))
+def search_salmon(t, c, x, time):
+    start_time = perf_counter()
+    delta_time = perf_counter()
+
+    while t > 0.1 and time > perf_counter()-start_time:
+        next_x = perturb(x)
+
+        if salomon(next_x) < salomon(x):
+            x = copy.deepcopy(next_x)
+        else:
+            prob = 1.0 / (1 + math.pow(math.e, c * (salomon(next_x) - salomon(x)) / t))
+
+            if random.uniform(0, 1) < prob:
+                x = copy.deepcopy(next_x)
+
+        if perf_counter() - delta_time >= 0.1:
+            t = t*0.999
+            delta_time = perf_counter()
+
+    print(x, salomon(x))
 
 
-def search_cat(act_sol, delta, hood):
-    local_opt = []
-    t_start = perf_counter()
-    counter = 0
+my_input = get_input()
+my_start = my_input[1]
+my_time = my_input[0]
 
-    while int(sys.argv[1]) - (perf_counter() - t_start) > 0:
-        prev_best = act_sol
-        for element in get_hood(act_sol, delta, hood):
-            if happy_cat(element) < happy_cat(act_sol):
-                act_sol = element
+search_salmon(1000, 1, my_start, my_time)
 
-        if prev_best == act_sol:
-            local_opt.append(act_sol)
-            counter += 1
-
-            if counter == 4:
-                act_sol = restart()
-                counter = 0
-
-            else:
-                act_sol = randomize(act_sol)
-
-    best = act_sol
-    for opt in local_opt:
-        if happy_cat(opt) < happy_cat(best):
-            best = opt
-
-    print(best[0], best[1], best[2], best[3], happy_cat(best))
-
-
-def search_wank(act_sol, delta, hood):
-    local_opt = []
-    t_start = perf_counter()
-    counter = 0
-
-    while int(sys.argv[1]) - (perf_counter() - t_start) > 0:
-        prev_best = act_sol
-        for element in get_hood(act_sol, delta, hood):
-            if griewank(element) < griewank(act_sol):
-                act_sol = element
-
-        if prev_best == act_sol:
-            local_opt.append(act_sol)
-            counter += 1
-
-            if counter == 4:
-                act_sol = restart()
-                counter = 0
-
-            else:
-                act_sol = randomize(act_sol)
-
-    best = act_sol
-    for opt in local_opt:
-        if griewank(opt) < griewank(best):
-            best = opt
-
-    print(best[0], best[1], best[2], best[3], griewank(best))
-
-
-def get_hood(x=None, delta_fun=0.2, hood_fun=0.6):
-    if x is None:
-        x = [0, 0, 0, 0]
-
-    my_hood = []
-
-    reach = int((10 * hood_fun) / (10 * delta_fun))
-
-    for idx in range(4):
-        x[idx] -= hood_fun
-
-    for _ in range(reach * 2):
-        for _ in range(reach * 2):
-            for _ in range(reach * 2):
-                for _ in range(reach * 2):
-                    my_hood.append(x[::])
-                    x[3] += delta_fun
-
-                x[3] -= reach * 2 * delta_fun
-                x[2] += delta_fun
-
-            x[2] -= reach * 2 * delta_fun
-            x[1] += delta_fun
-
-        x[1] -= reach * 2 * delta_fun
-        x[0] += delta_fun
-
-    return my_hood
-
-
-def restart():
-    return [random.randint(-1000, 1000), random.randint(-1000, 1000),
-            random.randint(-1000, 1000), random.randint(-1000, 1000)]
-
-
-start = restart()
-
-da_hood = 0.6
-da_delta = 0.2
-
-if sys.argv[2] == 0:
-    search_cat(start, da_delta, da_hood)
-else:
-    search_wank(start, da_delta, da_hood)
