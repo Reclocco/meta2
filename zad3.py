@@ -158,3 +158,4 @@ le_inputo = get_input()
 my_best = search_lab(le_inputo, 1000)
 print(len(my_best))
 eprint(to_char(my_best))
+
